@@ -692,7 +692,6 @@ const DEFAULT_GOALS = { cal: 2000, p: 150, f: 65, c: 250, water: 2000 };
 let GOALS = JSON.parse(localStorage.getItem('nouri_goals') || 'null') || { ...DEFAULT_GOALS };
 function saveGoals() { localStorage.setItem('nouri_goals', JSON.stringify(GOALS)); }
 
-// Added B7 (Biotin) and Phosphorus + Max Limit Value (UL) informational indicators
 const MICRONUTRIENT_DEFAULTS = {
   A: 900, D: 20, E: 15, K: 120, C: 90,
   B1: 1.2, B2: 1.3, B3: 16, B5: 5, B6: 1.7, B7: 30, B9: 400, B12: 2.4,
@@ -719,7 +718,11 @@ const MICRONUTRIENT_LABELS = {
   Potassium: 'Potassium', Zinc: 'Zinc', Sodium: 'Sodium', Iodine: 'Iodine'
 };
 
-let VITAMIN_GOALS = JSON.parse(localStorage.getItem('nouri_micros') || 'null') || { ...MICRONUTRIENT_DEFAULTS };
+// --- FIX: SMART MERGE FOR NEW MICRONUTRIENTS ---
+const savedMicros = JSON.parse(localStorage.getItem('nouri_micros') || '{}');
+let VITAMIN_GOALS = { ...MICRONUTRIENT_DEFAULTS, ...savedMicros };
+localStorage.setItem('nouri_micros', JSON.stringify(VITAMIN_GOALS));
+
 function saveMicroGoals() { localStorage.setItem('nouri_micros', JSON.stringify(VITAMIN_GOALS)); }
 
 const VITAMIN_UNITS = MICRONUTRIENT_UNITS;
@@ -835,7 +838,7 @@ function renderDashboard() {
   }
   setBar('pBar', totP, GOALS.p, 'pVal'); setBar('fBar', totF, GOALS.f, 'fVal'); setBar('cBar', totC, GOALS.c, 'cVal');
 
-  // Vitamins with UL Limit Informational text
+  // Vitamins
   const grid = document.getElementById('vitaminsGrid');
   if(grid) {
     grid.innerHTML = '';
@@ -885,7 +888,7 @@ function renderDashboard() {
     }
   }
 
-  // Meals Display with Edit Capability
+  // Meals
   const container = document.getElementById('mealsContainer');
   if(container) {
     container.innerHTML = '';
@@ -942,7 +945,7 @@ function addWater(d) {
   showToast('💧 Glass added!');
 }
 
-// ── LIBRARY MGMT (Edit, Delete, Save) ──
+// ── LIBRARY MGMT ──
 function renderLibrary() {
   const q = (document.getElementById('librarySearch')?.value || '').toLowerCase();
   const filtered = foodLibrary.filter(f => f.name.toLowerCase().includes(q));
@@ -1030,7 +1033,6 @@ function openEditLoggedFoodModal(mealId, idx) {
 
   openModal('new-food');
   
-  // Custom adaptation for Edit Mode UI
   document.getElementById('nfModalTitle').textContent = "Edit Logged Food";
   document.getElementById('nfSubmitBtn').textContent = "Update Entry";
   document.getElementById('nf-saved-section').style.display = 'none';
@@ -1188,7 +1190,7 @@ function addVitaminEntry(containerId, typeVal = '', qtyVal = '') {
     <select class="form-select" style="padding:6px 10px;">
       ${Object.keys(VITAMIN_GOALS).map(v => `<option value="${v}" ${v === typeVal ? 'selected' : ''}>${MICRONUTRIENT_LABELS[v]}</option>`).join('')}
     </select>
-    <input class="form-input" type="number" placeholder="qty" value="${qtyVal}" style="width:80px; padding:6px 8px;" step="0.01">
+    <input class="form-select" type="number" placeholder="qty" value="${qtyVal}" style="width:80px; padding:6px 8px;" step="0.01">
     <button class="remove-vit-btn" onclick="this.parentElement.remove()">✕</button>`;
   container.appendChild(entry);
 }
@@ -1258,7 +1260,7 @@ function saveFood() {
   saveLib(); renderLibrary(); closeModal('create-food');
 }
 
-// ── EXTENDED ANALYTICS ENG (Week / Month / Year + Deficit/Surplus Matrix) ──
+// ── EXTENDED ANALYTICS ENG ──
 let analyticsPeriod = 'week';
 function setPeriod(btn, period) {
   document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -1300,7 +1302,6 @@ function renderAnalytics() {
       if (cal >= GOALS.cal * 0.8 && cal <= GOALS.cal * 1.2) goalMetDays++;
     }
     
-    // Group chart labels visually for year scale compatibility
     if(days === 7) {
       labels.push(d.getDate() + '/' + (d.getMonth() + 1));
     } else if(days === 30) {
@@ -1315,7 +1316,6 @@ function renderAnalytics() {
   const avgCal = loggedDays ? Math.round(totalCal / loggedDays) : 0;
   const avgP = loggedDays ? Math.round(totalP / loggedDays) : 0;
   
-  // Calculate historical averages for vitamins
   if (loggedDays > 0) {
     Object.keys(vitAvgTotals).forEach(k => vitAvgTotals[k] /= loggedDays);
   }
@@ -1417,20 +1417,17 @@ function drawCalChart(labels, data) {
   const max = Math.max(...data, GOALS.cal) * 1.1 || 2200;
   const n = data.length;
 
-  // Goal line
   const gy = pad.t + ch * (1 - GOALS.cal / max);
   ctx.strokeStyle = 'rgba(122,171,138,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(pad.l + cw, gy); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Grid lines
   ctx.strokeStyle = currentTheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
   [0.25, 0.5, 0.75, 1].forEach(f => {
     const y = pad.t + ch * f;
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
   });
 
-  // Gradient area fill
   const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
   grad.addColorStop(0, 'rgba(122,171,138,0.25)'); grad.addColorStop(1, 'rgba(122,171,138,0)');
   ctx.beginPath();
@@ -1442,7 +1439,6 @@ function drawCalChart(labels, data) {
   ctx.lineTo(pad.l + cw, pad.t + ch); ctx.lineTo(pad.l, pad.t + ch); ctx.closePath();
   ctx.fillStyle = grad; ctx.fill();
 
-  // Line drawing
   ctx.beginPath(); ctx.strokeStyle = 'var(--sage)'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
   data.forEach((v, i) => {
     const x = pad.l + (i / (n - 1)) * cw;
@@ -1451,19 +1447,16 @@ function drawCalChart(labels, data) {
   });
   ctx.stroke();
 
-  // Labels rendering
   ctx.font = '9px DM Sans'; ctx.fillStyle = 'var(--muted)'; ctx.textAlign = 'center';
   data.forEach((v, i) => {
-    if (labels[i] === '') return; // Skip spacing masks
+    if (labels[i] === '') return;
     const x = pad.l + (i / (n - 1)) * cw;
-    const y = pad.t + ch * (1 - v / max);
     ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2);
     ctx.fillStyle = 'var(--sage)'; ctx.fill();
     ctx.fillStyle = 'var(--muted)';
     ctx.fillText(labels[i], x, pad.t + ch + 14);
   });
 
-  // Axis lines
   ctx.fillStyle = 'var(--muted)'; ctx.textAlign = 'right'; ctx.font = '8px DM Sans';
   [0, 0.5, 1].forEach(f => {
     ctx.fillText(Math.round(max * (1 - f)), pad.l - 4, pad.t + ch * f + 3);
@@ -1516,7 +1509,6 @@ function drawMacroChart(labels, pData, fData, cData) {
   });
 }
 
-// Advanced Vitamin Analytics Engine with Percentage Excess/Deficit matrix display mapping
 function varColor(cssVar) {
   return getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
 }
@@ -1570,7 +1562,6 @@ function renderVitaminAnalyticsExtended(vitAverages) {
   });
 }
 
-// ── TABS AND NAVIGATION ROUTING ──
 document.querySelectorAll('.tab').forEach(tab => {
   tab.onclick = () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1610,7 +1601,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
-// ── RUNTIME RE-INITIALIZATION ──
 buildCalendar();
 renderDashboard();
 </script>
